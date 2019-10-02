@@ -1,15 +1,16 @@
 package main
 
 import (
-	"os"
-	"fmt"
-	"strings"
 	"bytes"
-	"time"
-	"net/http"
-	"regexp"
-	"io/ioutil"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"regexp"
+	"strings"
+	"time"
+
 	"github.com/jessevdk/go-flags"
 )
 
@@ -23,14 +24,14 @@ import (
 // }
 
 type stProxyTarget struct {
-	Url     string `json:"url"`
+	URL string `json:"url"`
 }
 
 type stProxyRequest struct {
-	Type      string `json:"type"`
+	Type      string        `json:"type"`
 	Target    stProxyTarget `json:"target"`
-	Mbean     string `json:"mbean"`
-	Attribute string `json:"attribute"`
+	Mbean     string        `json:"mbean"`
+	Attribute string        `json:"attribute"`
 }
 
 type stRequest struct {
@@ -39,19 +40,18 @@ type stRequest struct {
 	Attribute string `json:"attribute"`
 }
 
-
 type stResponse struct {
 	Value  json.RawMessage `json:"value"`
-	Status int64  `json:status"`
+	Status int64           `json:"status"`
 }
 
 type options struct {
-	OptHost        string   `short:"H" long:"host" arg:"String" default:"127.0.0.1" description:"target host"`
-	OptPort        string   `short:"p" long:"port" arg:"String" default:"10050" description:"target port"`
-	OptPath        string   `short:"u" long:"path" arg:"String" default:"/jolokia" description:"target path"`
-	OptProxy       string   `short:"P" long:"proxy-url" arg:"String" default:"" description:"jmx proxy host. eg http://ip:port/jolokia"`
-	OptMbean       string   `short:"m" long:"mbean" arg:"String" required:"true" description:"mbean string"`
-	OptAttribute   string   `short:"a" long:"attribute" arg:"String" required:"true" description:"mbean attr"`
+	OptHost      string `short:"H" long:"host" arg:"String" default:"127.0.0.1" description:"target host"`
+	OptPort      string `short:"p" long:"port" arg:"String" default:"10050" description:"target port"`
+	OptPath      string `short:"u" long:"path" arg:"String" default:"/jolokia" description:"target path"`
+	OptProxy     string `short:"P" long:"proxy-url" arg:"String" default:"" description:"jmx proxy host. eg http://ip:port/jolokia"`
+	OptMbean     string `short:"m" long:"mbean" arg:"String" required:"true" description:"mbean string"`
+	OptAttribute string `short:"a" long:"attribute" arg:"String" required:"true" description:"mbean attr"`
 }
 
 func getValue(url string, reqBody string, subAttr []string) (string, error) {
@@ -65,7 +65,7 @@ func getValue(url string, reqBody string, subAttr []string) (string, error) {
 		return "", err
 	}
 	request.Header.Set("Content-Type", "application/json")
-	client := &http.Client{ Timeout: time.Duration(10 * time.Second) }
+	client := &http.Client{Timeout: time.Duration(10 * time.Second)}
 	response, err := client.Do(request)
 	if err != nil {
 		return "", err
@@ -82,7 +82,7 @@ func getValue(url string, reqBody string, subAttr []string) (string, error) {
 		return "", err
 	}
 	if resVal.Status != 200 {
-		return "", fmt.Errorf("status:%d",resVal.Status)
+		return "", fmt.Errorf("status:%d", resVal.Status)
 	}
 
 	ret := resVal.Value
@@ -100,7 +100,7 @@ func getValue(url string, reqBody string, subAttr []string) (string, error) {
 	}
 
 	if regexp.MustCompile("^{").MatchString(string(ret)) {
-		return string(ret), nil;
+		return string(ret), nil
 	}
 
 	var retVal interface{}
@@ -109,10 +109,10 @@ func getValue(url string, reqBody string, subAttr []string) (string, error) {
 		return "", err
 	}
 	switch retVal.(type) {
-    case string:
-		return retVal.(string), nil;
+	case string:
+		return retVal.(string), nil
 	case nil:
-		return "", fmt.Errorf("not found");
+		return "", fmt.Errorf("not found")
 	default:
 		return string(ret), nil
 	}
@@ -132,7 +132,7 @@ func _main() (st int) {
 	}
 
 	var subAttribute []string
-	splitedAttr := strings.Split(regexp.MustCompile("\\\\.").ReplaceAllString(opts.OptAttribute, "__escaped__dot__"),".")
+	splitedAttr := strings.Split(regexp.MustCompile("\\\\.").ReplaceAllString(opts.OptAttribute, "__escaped__dot__"), ".")
 	mainAttribute := regexp.MustCompile("__escaped__dot__").ReplaceAllString(splitedAttr[0], ".")
 	if len(splitedAttr) > 1 {
 		for _, v := range splitedAttr[1:] {
@@ -140,7 +140,7 @@ func _main() (st int) {
 		}
 	}
 
-	var Url string
+	var URL string
 	var pData []byte
 	if !regexp.MustCompile("/$").MatchString(opts.OptPath) {
 		opts.OptPath = opts.OptPath + "/"
@@ -149,24 +149,23 @@ func _main() (st int) {
 		opts.OptPath = "/" + opts.OptPath
 	}
 
-	if opts.OptProxy != ""  {
-		proxyTarget := stProxyTarget{fmt.Sprintf("service:jmx:rmi:///jndi/rmi://%s:%s/jmxrmi",opts.OptHost,opts.OptPort)}
-		proxyRequest := stProxyRequest{Target:proxyTarget, Mbean:opts.OptMbean, Attribute:mainAttribute, Type:"read"}
+	if opts.OptProxy != "" {
+		proxyTarget := stProxyTarget{fmt.Sprintf("service:jmx:rmi:///jndi/rmi://%s:%s/jmxrmi", opts.OptHost, opts.OptPort)}
+		proxyRequest := stProxyRequest{Target: proxyTarget, Mbean: opts.OptMbean, Attribute: mainAttribute, Type: "read"}
 		pData, _ = json.Marshal(proxyRequest)
-		Url = opts.OptProxy
+		URL = opts.OptProxy
 	} else {
-		theRequest := stRequest{Mbean:opts.OptMbean, Attribute:mainAttribute, Type:"read"}
+		theRequest := stRequest{Mbean: opts.OptMbean, Attribute: mainAttribute, Type: "read"}
 		pData, _ = json.Marshal(theRequest)
-		Url = fmt.Sprintf("http://%s:%s%s",opts.OptHost,opts.OptPort,opts.OptPath)
+		URL = fmt.Sprintf("http://%s:%s%s", opts.OptHost, opts.OptPort, opts.OptPath)
 	}
 
-	resValue, err := getValue(Url, string(pData), subAttribute)
+	resValue, err := getValue(URL, string(pData), subAttribute)
 	if err != nil {
-		fmt.Printf("Error: %s | mbean:%s attr:%s\n", err,  opts.OptMbean, opts.OptAttribute );
+		fmt.Printf("Error: %s | mbean:%s attr:%s\n", err, opts.OptMbean, opts.OptAttribute)
 		return
 	}
 	st = 0
-	fmt.Printf("%s\n",resValue)
+	fmt.Printf("%s\n", resValue)
 	return
 }
-
